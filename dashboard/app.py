@@ -436,18 +436,30 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
             "Leadership & Management": ["management", "coordinate", "strategic", "lead", "manager", "leadership", "mentor", "supervise"],
             "Problem Solving & Analytical": ["problem solving", "data driven", "analytical thinking", "analytical", "logic", "critical thinking", "troubleshoot"],
             "Soft Skills & Komunikasi": ["collaboration", "verbal", "presentation", "communication", "teamwork", "written", "interpersonal", "communicate"],
-            "Networking & Relationship": ["stakeholder", "cross functional", "relationship", "networking", "client", "partner", "collaboration"],
-            "Work Culture & Adaptability": ["initiative", "agile", "proactive", "adaptable", "fast paced", "dynamic", "culture", "adaptability"],
+            "Networking & Relationship": ["stakeholder", "cross functional", "relationship", "networking", "client", "partner"],
+            "Work Culture & Adaptability": ["initiative", "agile", "proactive", "adaptable", "fast paced", "dynamic", "culture"],
             "Persiapan Interview & Lamaran": ["recruitment", "interview", "portfolio", "cv", "resume", "hiring", "apply", "onboarding"],
             "Pengembangan Karir": ["training", "certification", "career growth", "learning", "development", "mentoring", "course"],
             "Industry Knowledge": ["business process", "business acumen", "industry trend", "market research", "competitor", "market"],
             "Personal Branding & LinkedIn": ["linkedin", "visibility", "profile", "branding", "social media", "brand", "network"]
         }
+        total_jobs = max(len(df), 1)
+        desc_lower = [str(d).lower() for d in df["description"].tolist()]
         theme_freqs = {}
-        total_jobs_for_freq = max(len(df), 1)
+        theme_top_kws = {}
         for theme, kws in THEME_KEYWORDS.items():
-            freq = sum(skill_counter.get(kw, 0) for kw in kws)
-            theme_freqs[theme] = min(freq / total_jobs_for_freq, 1.0)
+            job_kw_counter = Counter()
+            jobs_with_theme = 0
+            for desc in desc_lower:
+                found_any = False
+                for kw in kws:
+                    if kw in desc:
+                        job_kw_counter[kw] += 1
+                        found_any = True
+                if found_any:
+                    jobs_with_theme += 1
+            theme_freqs[theme] = min(jobs_with_theme / total_jobs, 1.0)
+            theme_top_kws[theme] = [kw for kw, _ in job_kw_counter.most_common(3)]
         for i, row in df_gap.iterrows():
             theme = row["content_topic"]
             market_freq = theme_freqs.get(theme, 0.0)
@@ -456,7 +468,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
             df_gap.at[i, "market_frequency"] = round(market_freq, 3)
             df_gap.at[i, "gap_score"] = round(gap_score, 3)
             df_gap.at[i, "opportunity_score"] = round(gap_score * 100.0, 2)
-            top_kws = sorted([kw for kw in THEME_KEYWORDS.get(theme, []) if skill_counter.get(kw, 0) > 0], key=lambda x: skill_counter[x], reverse=True)[:3]
+            top_kws = theme_top_kws.get(theme, [])
             if top_kws:
                 df_gap.at[i, "top_keywords_in_jobs"] = str(top_kws)
         df_gap = df_gap.sort_values("opportunity_score", ascending=False).reset_index(drop=True)
@@ -475,7 +487,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
                 "top_keywords": str(row["top_keywords_in_jobs"]).replace("[", "").replace("]", "").replace("'", ""),
                 "recommended_format": "Image",
                 "recommended_frequency": "3x per week" if opp > 50 else "2x per week",
-                "reasoning": f"Dari {len(df)} job scan terbaru, relevansi topik ini menjadi {round(row['market_frequency']*100, 1)}%. Performa ER historis akun adalah {row['avg_engagement_rate']}%."
+                "reasoning": f"Dari {len(df)} job scan terbaru, {round(row['market_frequency']*100, 1)}% lowongan menyebut topik ini. ER historis konten serupa: {row['avg_engagement_rate']}%."
             })
     return {
         "kpis": {
