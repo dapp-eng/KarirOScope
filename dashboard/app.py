@@ -10,9 +10,11 @@ from collections import Counter
 from pathlib import Path
 import numpy as np
 import pandas as pd
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from flask import Flask, jsonify, request, render_template, send_file
+
 warnings.filterwarnings("ignore")
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.environ.get("SECRET_KEY", "kos-intel-2024-x9k")
@@ -23,6 +25,8 @@ _scans = {}
 _keybert_model = None
 _keybert_available = False
 _keybert_init_lock = threading.Lock()
+
+
 def _get_keybert():
     global _keybert_model, _keybert_available
     if _keybert_model is not None:
@@ -33,12 +37,15 @@ def _get_keybert():
         try:
             from keybert import KeyBERT
             from sentence_transformers import SentenceTransformer
+
             _keybert_model = KeyBERT(model=SentenceTransformer("all-MiniLM-L6-v2"))
             _keybert_available = True
             return _keybert_model
         except Exception:
             _keybert_available = False
             return None
+
+
 def extract_skills_keybert(text, top_n=8):
     if not text or len(str(text).strip()) < 10:
         return []
@@ -48,7 +55,7 @@ def extract_skills_keybert(text, top_n=8):
     try:
         text_str = str(text)
         chunk_size = 1500
-        chunks = [text_str[i:i+chunk_size] for i in range(0, len(text_str), chunk_size)]
+        chunks = [text_str[i : i + chunk_size] for i in range(0, len(text_str), chunk_size)]
         all_keywords = []
         for chunk in chunks:
             if len(chunk.strip()) < 10:
@@ -65,6 +72,8 @@ def extract_skills_keybert(text, top_n=8):
     except Exception as e:
         print(f"KeyBERT error: {e}")
         return []
+
+
 def _read_csv(name):
     path = DATA_DIR / name
     if not path.exists():
@@ -73,6 +82,8 @@ def _read_csv(name):
         return pd.read_csv(path)
     except Exception:
         return pd.DataFrame()
+
+
 def _read_json(name):
     path = DATA_DIR / name
     if not path.exists():
@@ -82,6 +93,8 @@ def _read_json(name):
             return json.load(f)
     except Exception:
         return {}
+
+
 def _to_records(df):
     if df is None or df.empty:
         return []
@@ -89,6 +102,8 @@ def _to_records(df):
     for c in df.select_dtypes(include=["float64", "float32"]).columns:
         df[c] = df[c].where(df[c].notna(), None)
     return df.to_dict(orient="records")
+
+
 def _parse_list_col(val):
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return []
@@ -101,14 +116,31 @@ def _parse_list_col(val):
         except Exception:
             return []
     return []
+
+
 def _extract_city(loc_str):
     if not loc_str or (isinstance(loc_str, float) and np.isnan(loc_str)):
         return "Unknown"
     loc = str(loc_str).lower()
     cities = [
-        "jakarta", "surabaya", "bandung", "bali", "yogyakarta", "semarang",
-        "medan", "makassar", "malang", "denpasar", "tangerang", "bekasi",
-        "depok", "bogor", "solo", "pekanbaru", "batam", "palembang",
+        "jakarta",
+        "surabaya",
+        "bandung",
+        "bali",
+        "yogyakarta",
+        "semarang",
+        "medan",
+        "makassar",
+        "malang",
+        "denpasar",
+        "tangerang",
+        "bekasi",
+        "depok",
+        "bogor",
+        "solo",
+        "pekanbaru",
+        "batam",
+        "palembang",
     ]
     for city in cities:
         if city in loc:
@@ -117,6 +149,8 @@ def _extract_city(loc_str):
         return "Remote"
     parts = str(loc_str).split(",")
     return parts[0].strip().title() if parts else str(loc_str).title()
+
+
 def _compute_kpis(meta, df_idn, df_content, df_companies):
     kpis = {}
     if meta:
@@ -150,6 +184,8 @@ def _compute_kpis(meta, df_idn, df_content, df_companies):
             if len(first_valid):
                 kpis["ig_followers"] = int(first_valid.iloc[0])
     return kpis
+
+
 def _category_dist(df_idn):
     if df_idn.empty or "job_category" not in df_idn.columns:
         return []
@@ -158,6 +194,8 @@ def _category_dist(df_idn):
     total = counts["count"].sum()
     counts["percentage"] = (counts["count"] / total * 100).round(1)
     return _to_records(counts)
+
+
 def _location_dist(df_idn):
     if df_idn.empty or "location" not in df_idn.columns:
         return []
@@ -168,6 +206,8 @@ def _location_dist(df_idn):
     total = counts["count"].sum()
     counts["percentage"] = (counts["count"] / total * 100).round(1)
     return _to_records(counts)
+
+
 def load_data():
     global _cache
     meta = _read_json("metadata.json")
@@ -202,21 +242,35 @@ def load_data():
         if has_s.sum() > 0:
             salary_stats = {
                 "avg": round(float(df_temp.loc[has_s, "_avg_s"].mean()), 0),
-                "min": round(float(df_temp["min_amount"].dropna().min()), 0) if df_temp["min_amount"].notna().any() else 0,
-                "max": round(float(df_temp["max_amount"].dropna().max()), 0) if df_temp["max_amount"].notna().any() else 0,
+                "min": (
+                    round(float(df_temp["min_amount"].dropna().min()), 0)
+                    if df_temp["min_amount"].notna().any()
+                    else 0
+                ),
+                "max": (
+                    round(float(df_temp["max_amount"].dropna().max()), 0)
+                    if df_temp["max_amount"].notna().any()
+                    else 0
+                ),
                 "pct_disclosed": round(float(has_s.sum() / max(len(df_temp), 1) * 100), 1),
                 "count": int(has_s.sum()),
-                "currency": str(df_temp["currency"].dropna().iloc[0]) if "currency" in df_temp.columns and df_temp["currency"].notna().any() else "USD",
+                "currency": (
+                    str(df_temp["currency"].dropna().iloc[0])
+                    if "currency" in df_temp.columns and df_temp["currency"].notna().any()
+                    else "USD"
+                ),
             }
             if "job_category" in df_temp.columns:
                 for cat in df_temp["job_category"].dropna().unique():
                     cdf = df_temp[(df_temp["job_category"] == cat) & has_s]
                     if len(cdf) >= 2:
-                        salary_by_cat.append({
-                            "job_category": cat,
-                            "avg_salary": round(float(cdf["_avg_s"].mean()), 0),
-                            "count": int(len(cdf)),
-                        })
+                        salary_by_cat.append(
+                            {
+                                "job_category": cat,
+                                "avg_salary": round(float(cdf["_avg_s"].mean()), 0),
+                                "count": int(len(cdf)),
+                            }
+                        )
                 salary_by_cat.sort(key=lambda x: x["avg_salary"], reverse=True)
     freshness = {"hot": 0, "fresh": 0, "active": 0, "aging": 0, "unknown": 0}
     if not df_idn.empty and "posted_date" in df_idn.columns:
@@ -280,42 +334,196 @@ def load_data():
         "loaded_at": datetime.now().isoformat(),
     }
     return _cache
+
+
 load_data()
 SCAN_SKILLS = [
-    "sql", "python", "excel", "power bi", "tableau", "looker", "looker studio",
-    "machine learning", "deep learning", "tensorflow", "pytorch", "pandas", "numpy",
-    "scikit-learn", "r programming", "java", "javascript", "typescript", "react",
-    "vue", "angular", "node.js", "aws", "gcp", "azure", "docker", "kubernetes",
-    "git", "spark", "hadoop", "airflow", "dbt", "bigquery", "snowflake", "mongodb",
-    "postgresql", "mysql", "redis", "data visualization", "business intelligence",
-    "etl", "google analytics", "google sheets", "figma", "photoshop", "seo", "sem",
-    "kotlin", "swift", "flutter", "android", "ios", "php", "laravel", "django",
-    "flask", "spring", "golang", "statistics", "data engineering", "data science",
-    "nlp", "computer vision", "restful api", "microservices", "agile", "scrum",
+    "sql",
+    "python",
+    "excel",
+    "power bi",
+    "tableau",
+    "looker",
+    "looker studio",
+    "machine learning",
+    "deep learning",
+    "tensorflow",
+    "pytorch",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "r programming",
+    "java",
+    "javascript",
+    "typescript",
+    "react",
+    "vue",
+    "angular",
+    "node.js",
+    "aws",
+    "gcp",
+    "azure",
+    "docker",
+    "kubernetes",
+    "git",
+    "spark",
+    "hadoop",
+    "airflow",
+    "dbt",
+    "bigquery",
+    "snowflake",
+    "mongodb",
+    "postgresql",
+    "mysql",
+    "redis",
+    "data visualization",
+    "business intelligence",
+    "etl",
+    "google analytics",
+    "google sheets",
+    "figma",
+    "photoshop",
+    "seo",
+    "sem",
+    "kotlin",
+    "swift",
+    "flutter",
+    "android",
+    "ios",
+    "php",
+    "laravel",
+    "django",
+    "flask",
+    "spring",
+    "golang",
+    "statistics",
+    "data engineering",
+    "data science",
+    "nlp",
+    "computer vision",
+    "restful api",
+    "microservices",
+    "agile",
+    "scrum",
 ]
 SCAN_CATEGORIES = {
-    "Data and Technology": ["data", "analyst", "scientist", "analytics", "sql", "python", "machine learning", "ml", "ai", "bi", "business intelligence", "tableau", "power bi", "spark", "hadoop", "etl", "database", "statistic"],
-    "Software Engineering": ["software", "developer", "backend", "frontend", "fullstack", "full stack", "mobile", "android", "ios", "flutter", "react", "devops", "cloud", "aws", "gcp", "azure", "programmer", "engineer"],
-    "Marketing and Content": ["content", "writer", "copywriter", "creative", "social media", "digital marketing", "seo", "sem", "campaign", "brand", "growth", "performance marketing"],
-    "Sales and Business Development": ["sales", "business development", "account manager", "account executive", "partnership", "revenue", "customer success"],
+    "Data and Technology": [
+        "data",
+        "analyst",
+        "scientist",
+        "analytics",
+        "sql",
+        "python",
+        "machine learning",
+        "ml",
+        "ai",
+        "bi",
+        "business intelligence",
+        "tableau",
+        "power bi",
+        "spark",
+        "hadoop",
+        "etl",
+        "database",
+        "statistic",
+    ],
+    "Software Engineering": [
+        "software",
+        "developer",
+        "backend",
+        "frontend",
+        "fullstack",
+        "full stack",
+        "mobile",
+        "android",
+        "ios",
+        "flutter",
+        "react",
+        "devops",
+        "cloud",
+        "aws",
+        "gcp",
+        "azure",
+        "programmer",
+        "engineer",
+    ],
+    "Marketing and Content": [
+        "content",
+        "writer",
+        "copywriter",
+        "creative",
+        "social media",
+        "digital marketing",
+        "seo",
+        "sem",
+        "campaign",
+        "brand",
+        "growth",
+        "performance marketing",
+    ],
+    "Sales and Business Development": [
+        "sales",
+        "business development",
+        "account manager",
+        "account executive",
+        "partnership",
+        "revenue",
+        "customer success",
+    ],
     "People and HR": ["hr", "human resource", "talent", "recruitment", "payroll", "training"],
-    "Finance and Operations": ["finance", "accounting", "audit", "tax", "financial", "budgeting", "treasury"],
-    "Product and Design": ["product manager", "product owner", "ux", "ui", "user experience", "designer", "design", "figma"],
-    "Operations and Supply Chain": ["operation", "supply chain", "logistics", "warehouse", "procurement", "inventory"],
-    "Customer Service": ["customer service", "customer support", "call center", "helpdesk", "technical support"],
+    "Finance and Operations": [
+        "finance",
+        "accounting",
+        "audit",
+        "tax",
+        "financial",
+        "budgeting",
+        "treasury",
+    ],
+    "Product and Design": [
+        "product manager",
+        "product owner",
+        "ux",
+        "ui",
+        "user experience",
+        "designer",
+        "design",
+        "figma",
+    ],
+    "Operations and Supply Chain": [
+        "operation",
+        "supply chain",
+        "logistics",
+        "warehouse",
+        "procurement",
+        "inventory",
+    ],
+    "Customer Service": [
+        "customer service",
+        "customer support",
+        "call center",
+        "helpdesk",
+        "technical support",
+    ],
 }
+
+
 def _classify_job(title):
     t = str(title).lower()
     for cat, kws in SCAN_CATEGORIES.items():
         if any(kw in t for kw in kws):
             return cat
     return "General Business"
+
+
 def _safe_str(val):
     if val is None:
         return ""
     if isinstance(val, float) and np.isnan(val):
         return ""
     return str(val)
+
+
 def _process_scan_df(df, keyword, location, use_keybert=False):
     if df.empty:
         return {}
@@ -368,7 +576,19 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
     lc.columns = ["city", "count"]
     tot_l = lc["count"].sum()
     lc["percentage"] = (lc["count"] / tot_l * 100).round(1)
-    table_cols = ["job_title", "company_name", "location", "job_category", "posted_date", "job_url", "job_type", "is_remote", "min_amount", "max_amount", "currency"]
+    table_cols = [
+        "job_title",
+        "company_name",
+        "location",
+        "job_category",
+        "posted_date",
+        "job_url",
+        "job_type",
+        "is_remote",
+        "min_amount",
+        "max_amount",
+        "currency",
+    ]
     available = [c for c in table_cols if c in df.columns]
     jobs_list = []
     for _, row in df[available].iterrows():
@@ -386,20 +606,34 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
     if has_s.sum() > 0:
         salary_stats = {
             "avg": round(float(df.loc[has_s, "_avg_s"].mean()), 0),
-            "min": round(float(df["min_amount"].dropna().min()), 0) if df["min_amount"].notna().any() else 0,
-            "max": round(float(df["max_amount"].dropna().max()), 0) if df["max_amount"].notna().any() else 0,
+            "min": (
+                round(float(df["min_amount"].dropna().min()), 0)
+                if df["min_amount"].notna().any()
+                else 0
+            ),
+            "max": (
+                round(float(df["max_amount"].dropna().max()), 0)
+                if df["max_amount"].notna().any()
+                else 0
+            ),
             "pct_disclosed": round(float(has_s.sum() / max(len(df), 1) * 100), 1),
             "count": int(has_s.sum()),
-            "currency": str(df["currency"].dropna().iloc[0]) if "currency" in df.columns and df["currency"].notna().any() else "USD",
+            "currency": (
+                str(df["currency"].dropna().iloc[0])
+                if "currency" in df.columns and df["currency"].notna().any()
+                else "USD"
+            ),
         }
         for cat in df["job_category"].unique():
             cdf = df[(df["job_category"] == cat) & has_s]
             if len(cdf) >= 2:
-                salary_by_cat.append({
-                    "job_category": cat,
-                    "avg_salary": round(float(cdf["_avg_s"].mean()), 0),
-                    "count": int(len(cdf)),
-                })
+                salary_by_cat.append(
+                    {
+                        "job_category": cat,
+                        "avg_salary": round(float(cdf["_avg_s"].mean()), 0),
+                        "count": int(len(cdf)),
+                    }
+                )
         salary_by_cat.sort(key=lambda x: x["avg_salary"], reverse=True)
     freshness = {"hot": 0, "fresh": 0, "active": 0, "aging": 0, "unknown": 0}
     if "posted_date" in df.columns:
@@ -431,16 +665,104 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
     gap_records = []
     if not df_gap.empty:
         THEME_KEYWORDS = {
-            "Skill Teknis & Tools": ["excel", "sql", "data analysis", "python", "tableau", "power bi", "machine learning", "javascript", "react", "java", "data", "analyst", "developer", "engineer"],
-            "Leadership & Management": ["management", "coordinate", "strategic", "lead", "manager", "leadership", "mentor", "supervise"],
-            "Problem Solving & Analytical": ["problem solving", "data driven", "analytical thinking", "analytical", "logic", "critical thinking", "troubleshoot"],
-            "Soft Skills & Komunikasi": ["collaboration", "verbal", "presentation", "communication", "teamwork", "written", "interpersonal", "communicate"],
-            "Networking & Relationship": ["stakeholder", "cross functional", "relationship", "networking", "client", "partner"],
-            "Work Culture & Adaptability": ["initiative", "agile", "proactive", "adaptable", "fast paced", "dynamic", "culture"],
-            "Persiapan Interview & Lamaran": ["recruitment", "interview", "portfolio", "cv", "resume", "hiring", "apply", "onboarding"],
-            "Pengembangan Karir": ["training", "certification", "career growth", "learning", "development", "mentoring", "course"],
-            "Industry Knowledge": ["business process", "business acumen", "industry trend", "market research", "competitor", "market"],
-            "Personal Branding & LinkedIn": ["linkedin", "visibility", "profile", "branding", "social media", "brand", "network"]
+            "Skill Teknis & Tools": [
+                "excel",
+                "sql",
+                "data analysis",
+                "python",
+                "tableau",
+                "power bi",
+                "machine learning",
+                "javascript",
+                "react",
+                "java",
+                "data",
+                "analyst",
+                "developer",
+                "engineer",
+            ],
+            "Leadership & Management": [
+                "management",
+                "coordinate",
+                "strategic",
+                "lead",
+                "manager",
+                "leadership",
+                "mentor",
+                "supervise",
+            ],
+            "Problem Solving & Analytical": [
+                "problem solving",
+                "data driven",
+                "analytical thinking",
+                "analytical",
+                "logic",
+                "critical thinking",
+                "troubleshoot",
+            ],
+            "Soft Skills & Komunikasi": [
+                "collaboration",
+                "verbal",
+                "presentation",
+                "communication",
+                "teamwork",
+                "written",
+                "interpersonal",
+                "communicate",
+            ],
+            "Networking & Relationship": [
+                "stakeholder",
+                "cross functional",
+                "relationship",
+                "networking",
+                "client",
+                "partner",
+            ],
+            "Work Culture & Adaptability": [
+                "initiative",
+                "agile",
+                "proactive",
+                "adaptable",
+                "fast paced",
+                "dynamic",
+                "culture",
+            ],
+            "Persiapan Interview & Lamaran": [
+                "recruitment",
+                "interview",
+                "portfolio",
+                "cv",
+                "resume",
+                "hiring",
+                "apply",
+                "onboarding",
+            ],
+            "Pengembangan Karir": [
+                "training",
+                "certification",
+                "career growth",
+                "learning",
+                "development",
+                "mentoring",
+                "course",
+            ],
+            "Industry Knowledge": [
+                "business process",
+                "business acumen",
+                "industry trend",
+                "market research",
+                "competitor",
+                "market",
+            ],
+            "Personal Branding & LinkedIn": [
+                "linkedin",
+                "visibility",
+                "profile",
+                "branding",
+                "social media",
+                "brand",
+                "network",
+            ],
         }
         total_jobs = max(len(df), 1)
         desc_lower = [str(d).lower() for d in df["description"].tolist()]
@@ -475,24 +797,33 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         for i, row in df_gap.head(5).iterrows():
             theme = row["content_topic"]
             opp = row["opportunity_score"]
-            recs.append({
-                "rank": i + 1,
-                "content_topic": theme,
-                "opportunity_score": opp,
-                "market_frequency_pct": f"{round(row['market_frequency']*100, 1)}%",
-                "posts_count": row["posts_count"],
-                "coverage_rate": row["coverage_rate"],
-                "avg_engagement_rate": row["avg_engagement_rate"],
-                "top_keywords": str(row["top_keywords_in_jobs"]).replace("[", "").replace("]", "").replace("'", ""),
-                "recommended_format": "Image",
-                "recommended_frequency": "3x per week" if opp > 50 else "2x per week",
-                "reasoning": f"Dari {len(df)} job scan terbaru, {round(row['market_frequency']*100, 1)}% lowongan menyebut topik ini. ER historis konten serupa: {row['avg_engagement_rate']}%."
-            })
+            recs.append(
+                {
+                    "rank": i + 1,
+                    "content_topic": theme,
+                    "opportunity_score": opp,
+                    "market_frequency_pct": f"{round(row['market_frequency']*100, 1)}%",
+                    "posts_count": row["posts_count"],
+                    "coverage_rate": row["coverage_rate"],
+                    "avg_engagement_rate": row["avg_engagement_rate"],
+                    "top_keywords": str(row["top_keywords_in_jobs"])
+                    .replace("[", "")
+                    .replace("]", "")
+                    .replace("'", ""),
+                    "recommended_format": "Image",
+                    "recommended_frequency": "3x per week" if opp > 50 else "2x per week",
+                    "reasoning": f"Dari {len(df)} job scan terbaru, {round(row['market_frequency']*100, 1)}% lowongan menyebut topik ini. ER historis konten serupa: {row['avg_engagement_rate']}%.",
+                }
+            )
     return {
         "kpis": {
             "total_jobs": len(df),
-            "unique_companies": int(df["company_name"].nunique()) if "company_name" in df.columns else 0,
-            "top_category": str(df["job_category"].value_counts().index[0]) if len(df) > 0 else "N/A",
+            "unique_companies": (
+                int(df["company_name"].nunique()) if "company_name" in df.columns else 0
+            ),
+            "top_category": (
+                str(df["job_category"].value_counts().index[0]) if len(df) > 0 else "N/A"
+            ),
             "job_query": keyword,
             "location_query": location,
             "date_range": "Live Scan",
@@ -515,6 +846,8 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         "gap_analysis": gap_records,
         "recommendations": recs,
     }
+
+
 def _run_scan(scan_id, keyword, location, limit, use_keybert=False):
     reg = _scans[scan_id]
     try:
@@ -525,9 +858,16 @@ def _run_scan(scan_id, keyword, location, limit, use_keybert=False):
             reg.update({"status": "error", "error": "python-jobspy not installed on this server."})
             return
         skill_note = " + KeyBERT AI" if use_keybert else ""
-        reg.update({"progress": 15, "message": f'Connecting to LinkedIn - searching "{keyword}" in {location}...'})
+        reg.update(
+            {
+                "progress": 15,
+                "message": f'Connecting to LinkedIn - searching "{keyword}" in {location}...',
+            }
+        )
         time.sleep(0.5)
-        reg.update({"progress": 25, "message": "Fetching job listings (this may take 1-3 minutes)..."})
+        reg.update(
+            {"progress": 25, "message": "Fetching job listings (this may take 1-3 minutes)..."}
+        )
         jobs_df = scrape_jobs(
             site_name=["linkedin"],
             search_term=keyword,
@@ -537,49 +877,73 @@ def _run_scan(scan_id, keyword, location, limit, use_keybert=False):
             linkedin_fetch_description=True,
         )
         reg.update({"progress": 70, "message": f"Found {len(jobs_df)} jobs. Deduplicating..."})
-        jobs_df = jobs_df.drop_duplicates(subset=["description"]).copy() if not jobs_df.empty else jobs_df
+        jobs_df = (
+            jobs_df.drop_duplicates(subset=["description"]).copy() if not jobs_df.empty else jobs_df
+        )
         skill_msg = f"Extracting skills{skill_note} and categorizing..."
         reg.update({"progress": 80, "message": skill_msg})
         result = _process_scan_df(jobs_df, keyword, location, use_keybert=use_keybert)
         reg.update({"progress": 95, "message": "Finalizing analysis..."})
         time.sleep(0.3)
-        reg.update({
-            "progress": 100,
-            "status": "done",
-            "message": f'Done - {result["kpis"]["total_jobs"]} jobs analyzed.',
-            "result": result,
-        })
+        reg.update(
+            {
+                "progress": 100,
+                "status": "done",
+                "message": f'Done - {result["kpis"]["total_jobs"]} jobs analyzed.',
+                "result": result,
+            }
+        )
     except Exception as exc:
         reg.update({"status": "error", "error": str(exc), "message": f"Scan failed: {exc}"})
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
 @app.route("/api/data")
 def api_data():
     return jsonify(_cache)
+
+
 @app.route("/api/reload")
 def api_reload():
     load_data()
     return jsonify({"status": "ok", "loaded_at": _cache.get("loaded_at")})
+
+
 @app.route("/api/wordcloud")
 def api_wordcloud():
     path = DATA_DIR / "wordcloud_skills.png"
     if path.exists():
         return send_file(str(path), mimetype="image/png")
     return "", 404
+
+
 @app.route("/api/wordcloud/data")
 def api_wordcloud_data():
     return jsonify(_cache.get("skills", []))
+
+
 @app.route("/api/capabilities")
 def api_capabilities():
     try:
         _get_keybert()
     except Exception:
         pass
-    return jsonify({
-        "keybert": _keybert_available,
-        "skill_method": "KeyBERT + Keyword-based (hybrid)" if _keybert_available else "Keyword-based (built-in)",
-    })
+    return jsonify(
+        {
+            "keybert": _keybert_available,
+            "skill_method": (
+                "KeyBERT + Keyword-based (hybrid)"
+                if _keybert_available
+                else "Keyword-based (built-in)"
+            ),
+        }
+    )
+
+
 @app.route("/api/scan/start", methods=["POST"])
 def scan_start():
     body = request.get_json() or {}
@@ -598,9 +962,13 @@ def scan_start():
         "error": None,
         "created_at": datetime.now().isoformat(),
     }
-    t = threading.Thread(target=_run_scan, args=(sid, keyword, location, limit, use_keybert), daemon=True)
+    t = threading.Thread(
+        target=_run_scan, args=(sid, keyword, location, limit, use_keybert), daemon=True
+    )
     t.start()
     return jsonify({"scan_id": sid})
+
+
 @app.route("/api/scan/status/<sid>")
 def scan_status(sid):
     if sid not in _scans:
@@ -617,12 +985,18 @@ def scan_status(sid):
     elif job["status"] == "error":
         out["error"] = job.get("error")
     return jsonify(out)
+
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("error.html", code=404, msg="Page not found."), 404
+
+
 @app.errorhandler(500)
 def server_error(e):
     return render_template("error.html", code=500, msg="Internal server error."), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
