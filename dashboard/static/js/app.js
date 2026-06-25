@@ -1535,6 +1535,7 @@
   function initEventListeners() {
     el("themeToggle").addEventListener("click", () => applyTheme(_theme === "light" ? "dark" : "light", true));
     el("sidebarToggle").addEventListener("click", () => el("sidebar").classList.toggle("collapsed"));
+    el("brandIcon").addEventListener("click", () => el("sidebar").classList.toggle("collapsed"));
     el("mobileMenuBtn").addEventListener("click", () => el("sidebar").classList.toggle("mobile-open"));
 
     document.querySelectorAll(".nav-item").forEach((item) => {
