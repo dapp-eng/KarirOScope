@@ -10,7 +10,6 @@ from collections import Counter
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from flask import Flask, jsonify, request, render_template, send_file

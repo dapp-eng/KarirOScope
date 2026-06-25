@@ -158,8 +158,8 @@
       data_status: Object.assign({}, _data.data_status || {}, {
         has_data: true,
         instagram: (_data.data_status || {}).instagram,
-        gap: (_data.data_status || {}).gap,
-        recommendations: (_data.data_status || {}).recommendations,
+        gap: (result.gap_analysis || []).length > 0 || (_data.data_status || {}).gap,
+        recommendations: (result.recommendations || []).length > 0 || (_data.data_status || {}).recommendations,
       }),
     });
   }
@@ -1441,7 +1441,13 @@
   function initEventListeners() {
     el("themeToggle").addEventListener("click", () => applyTheme(_theme === "light" ? "dark" : "light", true));
     el("sidebarToggle").addEventListener("click", () => el("sidebar").classList.toggle("collapsed"));
-    el("brandIcon").addEventListener("click", () => el("sidebar").classList.toggle("collapsed"));
+    el("brandIcon").addEventListener("click", () => {
+      el("sidebar").classList.toggle("collapsed");
+      _easterClicks++;
+      clearTimeout(_easterTimer);
+      _easterTimer = setTimeout(() => { _easterClicks = 0; }, 1200);
+      if (_easterClicks >= 5) { _easterClicks = 0; triggerEasterEgg(); }
+    });
     el("mobileMenuBtn").addEventListener("click", () => el("sidebar").classList.toggle("mobile-open"));
     document.querySelectorAll(".nav-item").forEach((item) => {
       item.addEventListener("click", (e) => { e.preventDefault(); navigate(item.dataset.section); });
@@ -1542,15 +1548,7 @@
         filterJobs((el("jobSearch") || {}).value || "");
       });
     });
-    const brandIcon = el("brandIcon");
-    if (brandIcon) {
-      brandIcon.addEventListener("click", () => {
-        _easterClicks++;
-        clearTimeout(_easterTimer);
-        _easterTimer = setTimeout(() => { _easterClicks = 0; }, 1200);
-        if (_easterClicks >= 5) { _easterClicks = 0; triggerEasterEgg(); }
-      });
-    }
+
     document.addEventListener("keydown", (e) => {
       if (e.keyCode === KONAMI[_konamiIdx]) { _konamiIdx++; if (_konamiIdx === KONAMI.length) { _konamiIdx = 0; triggerEasterEgg(); } }
       else { _konamiIdx = 0; }
