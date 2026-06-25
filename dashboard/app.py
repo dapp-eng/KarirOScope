@@ -499,6 +499,64 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         except Exception:
             pass
 
+    df_gap = _read_csv("gap_analysis.csv")
+    recs = []
+    gap_records = []
+    
+    if not df_gap.empty:
+        THEME_KEYWORDS = {
+            "Skill Teknis & Tools": ["excel", "sql", "data analysis", "python", "tableau", "power bi", "machine learning", "javascript", "react", "java", "data", "analyst", "developer", "engineer"],
+            "Leadership & Management": ["management", "coordinate", "strategic", "lead", "manager", "leadership", "mentor", "supervise"],
+            "Problem Solving & Analytical": ["problem solving", "data driven", "analytical thinking", "analytical", "logic", "critical thinking", "troubleshoot"],
+            "Soft Skills & Komunikasi": ["collaboration", "verbal", "presentation", "communication", "teamwork", "written", "interpersonal", "communicate"],
+            "Networking & Relationship": ["stakeholder", "cross functional", "relationship", "networking", "client", "partner", "collaboration"],
+            "Work Culture & Adaptability": ["initiative", "agile", "proactive", "adaptable", "fast paced", "dynamic", "culture", "adaptability"],
+            "Persiapan Interview & Lamaran": ["recruitment", "interview", "portfolio", "cv", "resume", "hiring", "apply", "onboarding"],
+            "Pengembangan Karir": ["training", "certification", "career growth", "learning", "development", "mentoring", "course"],
+            "Industry Knowledge": ["business process", "business acumen", "industry trend", "market research", "competitor", "market"],
+            "Personal Branding & LinkedIn": ["linkedin", "visibility", "profile", "branding", "social media", "brand", "network"]
+        }
+        
+        theme_freqs = {}
+        total_jobs_for_freq = max(len(df), 1)
+        for theme, kws in THEME_KEYWORDS.items():
+            freq = sum(skill_counter.get(kw, 0) for kw in kws)
+            theme_freqs[theme] = min(freq / total_jobs_for_freq, 1.0)
+
+        for i, row in df_gap.iterrows():
+            theme = row["content_topic"]
+            market_freq = theme_freqs.get(theme, 0.0)
+            cov_rate = row.get("coverage_rate", 0.0)
+            
+            gap_score = market_freq * (1.0 - min(cov_rate * 3.0, 1.0))
+            df_gap.at[i, "market_frequency"] = round(market_freq, 3)
+            df_gap.at[i, "gap_score"] = round(gap_score, 3)
+            df_gap.at[i, "opportunity_score"] = round(gap_score * 100.0, 2)
+            
+            top_kws = sorted([kw for kw in THEME_KEYWORDS.get(theme, []) if skill_counter.get(kw, 0) > 0], key=lambda x: skill_counter[x], reverse=True)[:3]
+            if top_kws:
+                df_gap.at[i, "top_keywords_in_jobs"] = str(top_kws)
+                
+        df_gap = df_gap.sort_values("opportunity_score", ascending=False).reset_index(drop=True)
+        gap_records = df_gap.to_dict(orient="records")
+        
+        for i, row in df_gap.head(5).iterrows():
+            theme = row["content_topic"]
+            opp = row["opportunity_score"]
+            recs.append({
+                "rank": i + 1,
+                "content_topic": theme,
+                "opportunity_score": opp,
+                "market_frequency_pct": f"{round(row['market_frequency']*100, 1)}%",
+                "posts_count": row["posts_count"],
+                "coverage_rate": row["coverage_rate"],
+                "avg_engagement_rate": row["avg_engagement_rate"],
+                "top_keywords": str(row["top_keywords_in_jobs"]).replace("[", "").replace("]", "").replace("'", ""),
+                "recommended_format": "Image",
+                "recommended_frequency": "3x per week" if opp > 50 else "2x per week",
+                "reasoning": f"Dari {len(df)} job scan terbaru, relevansi topik ini menjadi {round(row['market_frequency']*100, 1)}%. Performa ER historis akun adalah {row['avg_engagement_rate']}%."
+            })
+
     return {
         "kpis": {
             "total_jobs": len(df),
@@ -523,6 +581,8 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         "salary_by_category": salary_by_cat,
         "freshness": freshness,
         "remote_stats": remote_stats,
+        "gap_analysis": gap_records,
+        "recommendations": recs,
     }
 
 

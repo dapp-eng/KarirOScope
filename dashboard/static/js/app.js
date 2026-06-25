@@ -170,8 +170,8 @@
       trend: (result.trend || []).length ? result.trend : (_data.trend || []),
       locations: (result.locations || []).length ? result.locations : (_data.locations || []),
       instagram: _data.instagram,
-      gap_analysis: _data.gap_analysis,
-      recommendations: _data.recommendations,
+      gap_analysis: (result.gap_analysis || []).length ? result.gap_analysis : (_data.gap_analysis || []),
+      recommendations: (result.recommendations || []).length ? result.recommendations : (_data.recommendations || []),
       data_status: Object.assign({}, _data.data_status || {}, {
         has_data: true,
         instagram: (_data.data_status || {}).instagram,
