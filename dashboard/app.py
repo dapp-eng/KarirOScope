@@ -663,9 +663,12 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
     df_gap = _read_csv("gap_analysis.csv")
     recs = []
     gap_records = []
+    ig_username = _cache.get("kpis", {}).get("ig_username", "belajarlinkedin")
+    total_ig_posts = _cache.get("kpis", {}).get("total_ig_posts", 0)
+    ig_avg_er = _cache.get("kpis", {}).get("ig_avg_er", 0)
     if not df_gap.empty:
         THEME_KEYWORDS = {
-            "Skill Teknis & Tools": [
+            "Technical Skills & Tools": [
                 "excel",
                 "sql",
                 "data analysis",
@@ -700,7 +703,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
                 "critical thinking",
                 "troubleshoot",
             ],
-            "Soft Skills & Komunikasi": [
+            "Soft Skills & Communication": [
                 "collaboration",
                 "verbal",
                 "presentation",
@@ -727,7 +730,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
                 "dynamic",
                 "culture",
             ],
-            "Persiapan Interview & Lamaran": [
+            "Interview & Job Application Prep": [
                 "recruitment",
                 "interview",
                 "portfolio",
@@ -737,7 +740,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
                 "apply",
                 "onboarding",
             ],
-            "Pengembangan Karir": [
+            "Career Development": [
                 "training",
                 "certification",
                 "career growth",
@@ -797,22 +800,40 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         for i, row in df_gap.head(5).iterrows():
             theme = row["content_topic"]
             opp = row["opportunity_score"]
+            freq_pct = round(row["market_frequency"] * 100, 1)
+            posts = int(row["posts_count"])
+            avg_er = row["avg_engagement_rate"]
+            kw_str = (
+                str(row["top_keywords_in_jobs"]).replace("[", "").replace("]", "").replace("'", "")
+            )
+            if posts == 0:
+                coverage_note = f"@{ig_username} has never created content on this topic out of {total_ig_posts} total posts."
+            else:
+                coverage_note = f"Only {posts} post{'s' if posts > 1 else ''} {'have' if posts > 1 else 'has'} covered this topic — far below the high market demand."
+            if avg_er > 0:
+                er_comparison = "above" if avg_er > ig_avg_er else "below"
+                er_note = f" Existing posts on this topic average {avg_er}% engagement rate ({er_comparison} the account average of {round(ig_avg_er, 2)}%)."
+            else:
+                er_note = ""
+            reasoning = (
+                f"{freq_pct}% of '{keyword}' job postings in {location} mention this topic — "
+                f"employers actively look for this in candidates. "
+                f"{coverage_note} "
+                f"Most frequently mentioned keywords in job postings: {kw_str}.{er_note}"
+            )
             recs.append(
                 {
                     "rank": i + 1,
                     "content_topic": theme,
                     "opportunity_score": opp,
-                    "market_frequency_pct": f"{round(row['market_frequency']*100, 1)}%",
-                    "posts_count": row["posts_count"],
+                    "market_frequency_pct": f"{freq_pct}%",
+                    "posts_count": posts,
                     "coverage_rate": row["coverage_rate"],
-                    "avg_engagement_rate": row["avg_engagement_rate"],
-                    "top_keywords": str(row["top_keywords_in_jobs"])
-                    .replace("[", "")
-                    .replace("]", "")
-                    .replace("'", ""),
+                    "avg_engagement_rate": avg_er,
+                    "top_keywords": kw_str,
                     "recommended_format": "Image",
                     "recommended_frequency": "3x per week" if opp > 50 else "2x per week",
-                    "reasoning": f"Dari {len(df)} job scan terbaru, {round(row['market_frequency']*100, 1)}% lowongan menyebut topik ini. ER historis konten serupa: {row['avg_engagement_rate']}%.",
+                    "reasoning": reasoning,
                 }
             )
     return {

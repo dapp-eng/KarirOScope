@@ -1,11 +1,11 @@
 content_topic,market_frequency,posts_count,coverage_rate,avg_engagement_rate,top_keywords_in_jobs,gap_score,opportunity_score
-Skill Teknis & Tools,0.778,1,0.03,28.42,"['excel', 'sql', 'data analysis']",0.707,70.71
+Technical Skills & Tools,0.778,1,0.03,28.42,"['excel', 'sql', 'data analysis']",0.707,70.71
 Leadership & Management,0.651,0,0.0,0.0,"['management', 'coordinate', 'strategic']",0.651,65.08
 Problem Solving & Analytical,0.444,0,0.0,0.0,"['problem solving', 'data driven', 'analytical thinking']",0.444,44.44
-Soft Skills & Komunikasi,0.5,2,0.061,38.66,"['collaboration', 'verbal', 'presentation']",0.409,40.91
+Soft Skills & Communication,0.5,2,0.061,38.66,"['collaboration', 'verbal', 'presentation']",0.409,40.91
 Networking & Relationship,0.556,3,0.091,21.57,"['stakeholder', 'cross functional', 'relationship']",0.404,40.4
 Work Culture & Adaptability,0.373,0,0.0,0.0,"['initiative', 'agile', 'proactive']",0.373,37.3
-Persiapan Interview & Lamaran,0.214,2,0.061,64.22,"['recruitment', 'interview', 'portfolio']",0.175,17.53
-Pengembangan Karir,0.198,2,0.061,31.42,"['training', 'certification', 'career growth']",0.162,16.23
+Interview & Job Application Prep,0.214,2,0.061,64.22,"['recruitment', 'interview', 'portfolio']",0.175,17.53
+Career Development,0.198,2,0.061,31.42,"['training', 'certification', 'career growth']",0.162,16.23
 Industry Knowledge,0.087,0,0.0,0.0,"['business process', 'business acumen', 'industry trend']",0.087,8.73
 Personal Branding & LinkedIn,0.095,19,0.576,26.35,"['linkedin', 'visibility', 'profile']",0.0,0.0
