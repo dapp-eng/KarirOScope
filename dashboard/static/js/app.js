@@ -326,9 +326,18 @@
     const count = salaryStats.count || 0;
     if (count > 0) {
       osCard.style.display = 'block';
-      const avgM = salaryStats.avg ? (salaryStats.avg / 1000000).toFixed(1) : '0.0';
+      let avgStr = '0';
+      if (salaryStats.avg) {
+        if (salaryStats.avg >= 1000000) {
+          avgStr = (salaryStats.avg / 1000000).toFixed(1) + 'M';
+        } else if (salaryStats.avg >= 1000) {
+          avgStr = (salaryStats.avg / 1000).toFixed(1) + 'K';
+        } else {
+          avgStr = Math.round(salaryStats.avg).toLocaleString();
+        }
+      }
       if (osMeta)
-        osMeta.innerHTML = `Salary Info: <strong>${count} jobs</strong> (${salaryStats.pct_disclosed || 0}%) | Avg: <strong>${salaryStats.currency || 'USD'} ${avgM}M</strong>`;
+        osMeta.innerHTML = `Salary Info: <strong>${count} jobs</strong> (${salaryStats.pct_disclosed || 0}%) | Avg: <strong>${salaryStats.currency || 'USD'} ${avgStr}</strong>`;
       if (salary.length >= 1) {
         const cur = salaryStats.currency || 'USD';
         const sorted = [...salary].sort((a, b) => b.avg_salary - a.avg_salary);
