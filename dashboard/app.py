@@ -809,14 +809,14 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
             if posts == 0:
                 coverage_note = f"@{ig_username} has never created content on this topic out of {total_ig_posts} total posts."
             else:
-                coverage_note = f"Only {posts} post{'s' if posts > 1 else ''} {'have' if posts > 1 else 'has'} covered this topic — far below the high market demand."
+                coverage_note = f"Only {posts} post{'s' if posts > 1 else ''} {'have' if posts > 1 else 'has'} covered this topic - far below the high market demand."
             if avg_er > 0:
                 er_comparison = "above" if avg_er > ig_avg_er else "below"
                 er_note = f" Existing posts on this topic average {avg_er}% engagement rate ({er_comparison} the account average of {round(ig_avg_er, 2)}%)."
             else:
                 er_note = ""
             reasoning = (
-                f"{freq_pct}% of '{keyword}' job postings in {location} mention this topic — "
+                f"{freq_pct}% of '{keyword}' job postings in {location} mention this topic - "
                 f"employers actively look for this in candidates. "
                 f"{coverage_note} "
                 f"Most frequently mentioned keywords in job postings: {kw_str}.{er_note}"
