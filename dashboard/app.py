@@ -263,7 +263,7 @@ def load_data():
             if "job_category" in df_temp.columns:
                 for cat in df_temp["job_category"].dropna().unique():
                     cdf = df_temp[(df_temp["job_category"] == cat) & has_s]
-                    if len(cdf) >= 2:
+                    if len(cdf) >= 1:
                         salary_by_cat.append(
                             {
                                 "job_category": cat,
@@ -626,7 +626,7 @@ def _process_scan_df(df, keyword, location, use_keybert=False):
         }
         for cat in df["job_category"].unique():
             cdf = df[(df["job_category"] == cat) & has_s]
-            if len(cdf) >= 2:
+            if len(cdf) >= 1:
                 salary_by_cat.append(
                     {
                         "job_category": cat,

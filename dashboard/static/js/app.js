@@ -131,8 +131,15 @@
     full.autosize = true;
     Plotly.react(e, traces, full, Object.assign({}, PLOTLY_CONFIG, config || {}));
     setTimeout(() => {
-      if (e && e.offsetParent !== null) Plotly.relayout(e, { autosize: true });
-    }, 80);
+      try {
+        Plotly.relayout(e, { autosize: true });
+      } catch (_) {}
+    }, 100);
+    setTimeout(() => {
+      try {
+        if (e.clientWidth > 0) Plotly.relayout(e, { autosize: true });
+      } catch (_) {}
+    }, 400);
   }
   function animateCounter(element, finalVal, duration) {
     if (!element) return;
@@ -182,6 +189,10 @@
       total_ig_posts: (_data.kpis || {}).total_ig_posts,
       ig_username: (_data.kpis || {}).ig_username,
     });
+    const hasScanSalary =
+      result.salary_stats && (result.salary_stats.count || 0) > 0;
+    const hasScanSalaryByCat =
+      result.salary_by_category && result.salary_by_category.length > 0;
     return Object.assign({}, _data, {
       kpis: mergedKpis,
       skills: (result.skills || []).length ? result.skills : _data.skills || [],
@@ -196,6 +207,12 @@
       recommendations: (result.recommendations || []).length
         ? result.recommendations
         : _data.recommendations || [],
+      salary_stats: hasScanSalary ? result.salary_stats : _data.salary_stats || {},
+      salary_by_category: hasScanSalaryByCat
+        ? result.salary_by_category
+        : _data.salary_by_category || [],
+      freshness: result.freshness || _data.freshness || {},
+      remote_stats: result.remote_stats || _data.remote_stats || {},
       data_status: Object.assign({}, _data.data_status || {}, {
         has_data: true,
         instagram: (_data.data_status || {}).instagram,
@@ -215,8 +232,13 @@
     if (hasGap) {
       if (el('gap-no-data')) el('gap-no-data').style.display = 'none';
       if (el('gap-content')) el('gap-content').style.display = 'block';
-      chartGapScatter(merged);
-      chartGapBar(merged);
+      setTimeout(() => {
+        chartGapScatter(merged);
+        chartGapBar(merged);
+      }, 150);
+    } else {
+      if (el('gap-no-data')) el('gap-no-data').style.display = 'flex';
+      if (el('gap-content')) el('gap-content').style.display = 'none';
     }
     renderRecommendations(merged);
     const badge = el('topbarScanBadge');
@@ -300,10 +322,13 @@
     const osCard = el('overviewSalaryCard');
     const osMeta = el('overviewSalaryMeta');
     const ca = el('chart-overview-salary');
-    if (osCard && salaryStats.count > 0) {
+    if (!osCard) return;
+    const count = salaryStats.count || 0;
+    if (count > 0) {
       osCard.style.display = 'block';
+      const avgM = salaryStats.avg ? (salaryStats.avg / 1000000).toFixed(1) : '0.0';
       if (osMeta)
-        osMeta.innerHTML = `Salary Info: <strong>${salaryStats.count} jobs</strong> (${salaryStats.pct_disclosed}%) | Avg: <strong>${salaryStats.currency || 'USD'} ${(salaryStats.avg / 1000000).toFixed(1)}M</strong>`;
+        osMeta.innerHTML = `Salary Info: <strong>${count} jobs</strong> (${salaryStats.pct_disclosed || 0}%) | Avg: <strong>${salaryStats.currency || 'USD'} ${avgM}M</strong>`;
       if (salary.length >= 1) {
         const cur = salaryStats.currency || 'USD';
         const sorted = [...salary].sort((a, b) => b.avg_salary - a.avg_salary);
@@ -327,7 +352,7 @@
               text: sorted.map((r) => cur + ' ' + Math.round(r.avg_salary).toLocaleString()),
               textposition: 'outside',
               textfont: { size: 10 },
-              hovertemplate: '<b>%{y}</b><br>Avg: %{text}<br>%{count} sample<extra></extra>',
+              hovertemplate: '<b>%{y}</b><br>Avg: %{text}<extra></extra>',
               cliponaxis: false,
             },
           ],
@@ -338,7 +363,7 @@
               automargin: true,
             },
             yaxis: { autorange: 'reversed', tickfont: { size: 10 }, automargin: true },
-            margin: { t: 10, r: 100, b: 50, l: 24 },
+            margin: { t: 10, r: 120, b: 50, l: 24 },
             bargap: 0.3,
           },
         );
@@ -347,6 +372,8 @@
           ca.innerHTML =
             '<div style="padding:40px;text-align:center;color:var(--muted);font-size:12px">Insufficient salary data to show category breakdown.</div>';
       }
+    } else {
+      osCard.style.display = 'none';
     }
   }
   function renderJobCharts(data) {
@@ -380,11 +407,15 @@
           elem.style.animation = '';
           elem.style.animationDelay = delay + i * 0.05 + 's';
         });
-      setTimeout(() => {
+      const resizeCharts = () => {
         sec.querySelectorAll("[id^='chart-']").forEach((div) => {
-          if (div && div.data && div.data.length) Plotly.Plots.resize(div);
+          if (div && div.data && div.data.length) {
+            try { Plotly.Plots.resize(div); } catch (_) {}
+          }
         });
-      }, 200);
+      };
+      setTimeout(resizeCharts, 150);
+      setTimeout(resizeCharts, 400);
     }
     const nav = document.querySelector(`.nav-item[data-section="${section}"]`);
     if (nav) nav.classList.add('active');
@@ -1028,13 +1059,27 @@
   function chartGapScatter(data) {
     const rows = data.gap_analysis || [];
     if (!rows.length) return;
-    const freqCol =
-      rows[0].market_frequency_pct !== undefined ? 'market_frequency_pct' : 'market_frequency';
-    const covCol = rows[0].coverage_rate !== undefined ? 'coverage_rate' : 'posts_count';
-    const x = rows.map((r) => parseFloat(r[freqCol]) || 0);
-    const y = rows.map((r) => parseFloat(r[covCol]) || 0);
+    const first = rows[0];
+    let freqCol;
+    if (first.market_frequency !== undefined) {
+      freqCol = 'market_frequency';
+    } else if (first.market_frequency_pct !== undefined) {
+      freqCol = 'market_frequency_pct';
+    } else {
+      freqCol = 'market_frequency';
+    }
+    const covCol = first.coverage_rate !== undefined ? 'coverage_rate' : 'posts_count';
+    const x = rows.map((r) => {
+      const v = parseFloat(r[freqCol]);
+      return isNaN(v) ? 0 : v;
+    });
+    const y = rows.map((r) => {
+      const v = parseFloat(r[covCol]);
+      return isNaN(v) ? 0 : v;
+    });
     const labels = rows.map((r) => r.content_topic || '');
-    const scores = rows.map((r) => r.opportunity_score || 0);
+    const scores = rows.map((r) => parseFloat(r.opportunity_score) || 0);
+    const maxScore = Math.max(...scores, 1);
     renderChart(
       'chart-gap-scatter',
       [
@@ -1052,7 +1097,9 @@
               [0, COLORS.teal + '88'],
               [1, COLORS.red],
             ],
-            size: scores.map((s) => 8 + s * 0.4),
+            cmin: 0,
+            cmax: maxScore,
+            size: scores.map((s) => Math.max(8, 8 + s * 0.4)),
             showscale: true,
             colorbar: {
               title: { text: 'Score', font: { size: 10 } },
@@ -1061,12 +1108,12 @@
             },
             line: { color: _theme === 'dark' ? '#30363D' : '#E2E8F0', width: 1 },
           },
-          hovertemplate: '<b>%{text}</b><br>Market: %{x:.2f}<br>Coverage: %{y:.2f}<extra></extra>',
+          hovertemplate: '<b>%{text}</b><br>Market Demand: %{x:.3f}<br>Coverage Rate: %{y:.3f}<extra></extra>',
         },
       ],
       {
-        xaxis: { title: { text: 'Market Demand' }, automargin: true },
-        yaxis: { title: { text: 'Content Coverage' }, automargin: true },
+        xaxis: { title: { text: 'Market Demand' }, automargin: true, rangemode: 'tozero' },
+        yaxis: { title: { text: 'Content Coverage' }, automargin: true, rangemode: 'tozero' },
         margin: { t: 20, r: 80, b: 60, l: 60 },
       },
     );
@@ -1424,6 +1471,132 @@
     const resultsCard = el('scanResultsCard');
     if (resultsCard) resultsCard.style.display = 'block';
     renderKpis(result.kpis, 'scanKpiRow');
+    renderScanCharts(result);
+    renderScanExtras(result);
+    renderJobTable(result.jobs_list || []);
+    checkAlertThreshold(result.kpis, result.skills || []);
+    if (_mySkills.length) analyzeSkillGap(result.skills || (_data && _data.skills) || []);
+    setTimeout(() => {
+      const scanCard = el('scanResultsCard');
+      if (scanCard) {
+        scanCard.querySelectorAll("[id^='chart-']").forEach((div) => {
+          if (div && div.data && div.data.length) {
+            try { Plotly.Plots.resize(div); } catch (_) {}
+          }
+        });
+      }
+    }, 350);
+  }
+  function pollScan(scanId) {
+    if (_pollTimer) clearInterval(_pollTimer);
+    let lastMsg = '';
+    _pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/api/scan/status/' + scanId);
+        const data = await res.json();
+        setProgress(data.progress || 0, data.message || '');
+        if (data.message && data.message !== lastMsg) {
+          addLog(data.message, data.status === 'error' ? 'error' : 'info');
+          lastMsg = data.message;
+        }
+        if (data.status === 'done') {
+          clearInterval(_pollTimer);
+          _pollTimer = null;
+          addLog('Scan complete. Dashboard updated.', 'success');
+          onScanDone(data.result);
+        } else if (data.status === 'error') {
+          clearInterval(_pollTimer);
+          _pollTimer = null;
+          setSpinner(false);
+          const errBox = el('scanErrorBox');
+          if (errBox) {
+            errBox.textContent = 'Error: ' + data.error;
+            errBox.style.display = 'block';
+          }
+          const startBtn = el('btnStartScan');
+          if (startBtn) startBtn.disabled = false;
+          _activeScan = false;
+        }
+      } catch (e) {
+        clearInterval(_pollTimer);
+        _pollTimer = null;
+        setSpinner(false);
+        addLog('Connection error: ' + e.message, 'error');
+        const startBtn = el('btnStartScan');
+        if (startBtn) startBtn.disabled = false;
+        _activeScan = false;
+      }
+    }, 1500);
+  }
+  function startScan() {
+    const keyword = (el('scanKeyword').value || '').trim();
+    const location = (el('scanLocation').value || 'Indonesia').trim();
+    const limit = el('scanLimit').value || 100;
+    const useKeybert = el('skillMethodSelect').value === 'keybert';
+    if (!keyword) {
+      const inp = el('scanKeyword');
+      inp.focus();
+      inp.style.borderColor = 'var(--danger)';
+      setTimeout(() => {
+        inp.style.borderColor = '';
+      }, 2000);
+      return;
+    }
+    _activeScan = true;
+    el('btnStartScan').disabled = true;
+    if (el('scanProgressCard')) el('scanProgressCard').style.display = 'block';
+    if (el('scanResultsCard')) el('scanResultsCard').style.display = 'none';
+    if (el('scanErrorBox')) el('scanErrorBox').style.display = 'none';
+    if (el('jobTableCard')) el('jobTableCard').style.display = 'none';
+    el('scanLog').innerHTML = '';
+    setProgress(0, 'Connecting to LinkedIn...');
+    el('progressTitle').textContent = 'Scanning...';
+    setSpinner(true);
+    addLog(
+      `Starting: "${keyword}" in ${location} (${limit} results${useKeybert ? ' + KeyBERT' : ''})`,
+      'info',
+    );
+    fetch('/api/scan/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, location, limit, use_keybert: useKeybert }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) {
+          addLog('Error: ' + d.error, 'error');
+          el('btnStartScan').disabled = false;
+          _activeScan = false;
+          setSpinner(false);
+          return;
+        }
+        _scanId = d.scan_id;
+        addLog('Scan ID: ' + d.scan_id, 'info');
+        pollScan(d.scan_id);
+      })
+      .catch((e) => {
+        addLog('Failed to start: ' + e.message, 'error');
+        el('btnStartScan').disabled = false;
+        _activeScan = false;
+        setSpinner(false);
+      });
+  }
+  function resetToDefault() {
+    _scanResult = null;
+    _scanId = null;
+    if (_pollTimer) {
+      clearInterval(_pollTimer);
+      _pollTimer = null;
+    }
+    try {
+      localStorage.removeItem(LS_SCAN_KEY);
+    } catch (e) {}
+    if (el('topbarScanBadge')) el('topbarScanBadge').style.display = 'none';
+    if (el('btnResetScan')) el('btnResetScan').style.display = 'none';
+    if (_data) renderAllCharts(_data);
+  }
+  function renderScanCharts(result) {
+    if (!result) return;
     if (result.skills && result.skills.length) {
       const top = result.skills.slice(0, 15);
       const maxX = Math.max(...top.map((r) => r.frequency || 0));
@@ -1534,118 +1707,6 @@
         },
       );
     }
-    renderScanExtras(result);
-    renderJobTable(result.jobs_list || []);
-    checkAlertThreshold(result.kpis, result.skills || []);
-    if (_mySkills.length) analyzeSkillGap(result.skills || (_data && _data.skills) || []);
-  }
-  function pollScan(scanId) {
-    if (_pollTimer) clearInterval(_pollTimer);
-    let lastMsg = '';
-    _pollTimer = setInterval(async () => {
-      try {
-        const res = await fetch('/api/scan/status/' + scanId);
-        const data = await res.json();
-        setProgress(data.progress || 0, data.message || '');
-        if (data.message && data.message !== lastMsg) {
-          addLog(data.message, data.status === 'error' ? 'error' : 'info');
-          lastMsg = data.message;
-        }
-        if (data.status === 'done') {
-          clearInterval(_pollTimer);
-          _pollTimer = null;
-          addLog('Scan complete. Dashboard updated.', 'success');
-          onScanDone(data.result);
-        } else if (data.status === 'error') {
-          clearInterval(_pollTimer);
-          _pollTimer = null;
-          setSpinner(false);
-          const errBox = el('scanErrorBox');
-          if (errBox) {
-            errBox.textContent = 'Error: ' + data.error;
-            errBox.style.display = 'block';
-          }
-          const startBtn = el('btnStartScan');
-          if (startBtn) startBtn.disabled = false;
-          _activeScan = false;
-        }
-      } catch (e) {
-        clearInterval(_pollTimer);
-        _pollTimer = null;
-        setSpinner(false);
-        addLog('Connection error: ' + e.message, 'error');
-        const startBtn = el('btnStartScan');
-        if (startBtn) startBtn.disabled = false;
-        _activeScan = false;
-      }
-    }, 1500);
-  }
-  function startScan() {
-    const keyword = (el('scanKeyword').value || '').trim();
-    const location = (el('scanLocation').value || 'Indonesia').trim();
-    const limit = el('scanLimit').value || 100;
-    const useKeybert = el('skillMethodSelect').value === 'keybert';
-    if (!keyword) {
-      const inp = el('scanKeyword');
-      inp.focus();
-      inp.style.borderColor = 'var(--danger)';
-      setTimeout(() => {
-        inp.style.borderColor = '';
-      }, 2000);
-      return;
-    }
-    _activeScan = true;
-    el('btnStartScan').disabled = true;
-    if (el('scanProgressCard')) el('scanProgressCard').style.display = 'block';
-    if (el('scanResultsCard')) el('scanResultsCard').style.display = 'none';
-    if (el('scanErrorBox')) el('scanErrorBox').style.display = 'none';
-    if (el('jobTableCard')) el('jobTableCard').style.display = 'none';
-    el('scanLog').innerHTML = '';
-    setProgress(0, 'Connecting to LinkedIn...');
-    el('progressTitle').textContent = 'Scanning...';
-    setSpinner(true);
-    addLog(
-      `Starting: "${keyword}" in ${location} (${limit} results${useKeybert ? ' + KeyBERT' : ''})`,
-      'info',
-    );
-    fetch('/api/scan/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, location, limit, use_keybert: useKeybert }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) {
-          addLog('Error: ' + d.error, 'error');
-          el('btnStartScan').disabled = false;
-          _activeScan = false;
-          setSpinner(false);
-          return;
-        }
-        _scanId = d.scan_id;
-        addLog('Scan ID: ' + d.scan_id, 'info');
-        pollScan(d.scan_id);
-      })
-      .catch((e) => {
-        addLog('Failed to start: ' + e.message, 'error');
-        el('btnStartScan').disabled = false;
-        _activeScan = false;
-        setSpinner(false);
-      });
-  }
-  function resetToDefault() {
-    _scanResult = null;
-    _scanId = null;
-    if (_pollTimer) {
-      clearInterval(_pollTimer);
-      _pollTimer = null;
-    }
-    try {
-      localStorage.removeItem(LS_SCAN_KEY);
-    } catch (e) {}
-    if (el('topbarScanBadge')) el('topbarScanBadge').style.display = 'none';
-    if (el('btnResetScan')) el('btnResetScan').style.display = 'none';
-    if (_data) renderAllCharts(_data);
   }
   function loadSavedScan() {
     try {
@@ -1655,8 +1716,9 @@
       if (!result || !result.kpis) return;
       _scanResult = result;
       applyLiveScan(result);
-      if (el('scanResultsCard')) {
-        el('scanResultsCard').style.display = 'block';
+      const scanResultsCard = el('scanResultsCard');
+      if (scanResultsCard) {
+        scanResultsCard.style.display = 'block';
         renderKpis(result.kpis, 'scanKpiRow');
         if (result.jobs_list) renderJobTable(result.jobs_list);
         renderScanCharts(result);
@@ -2278,7 +2340,17 @@
       const active = document.querySelector('.page-section.active');
       if (active) {
         active.querySelectorAll("[id^='chart-']").forEach((div) => {
-          if (div && div.data && div.data.length) Plotly.Plots.resize(div);
+          if (div && div.data && div.data.length) {
+            try { Plotly.Plots.resize(div); } catch (_) {}
+          }
+        });
+      }
+      const scanCard = el('scanResultsCard');
+      if (scanCard && scanCard.style.display !== 'none') {
+        scanCard.querySelectorAll("[id^='chart-']").forEach((div) => {
+          if (div && div.data && div.data.length) {
+            try { Plotly.Plots.resize(div); } catch (_) {}
+          }
         });
       }
     });
