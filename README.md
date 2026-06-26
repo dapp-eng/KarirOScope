@@ -8,7 +8,7 @@ pinned: false
 ---
 
 # KarirOScope
-**Live Dashboard:** [https://huggingface.co/spaces/dapp-eng/kariroscope-dashboard](https://huggingface.co/spaces/dapp-eng/kariroscope-dashboard)
+**Live Dashboard:** [https://dapp-eng-kariroscope-dashboard.hf.space](https://dapp-eng-kariroscope-dashboard.hf.space)
 
 KarirOScope is an interactive dashboard and data pipeline built for analyzing job market trends, specifically targeting tech and data roles in Indonesia. It collects, cleans, and visualizes job posting data to uncover insights such as top skills, hiring companies, work modes (remote/onsite), and average salaries.
 
