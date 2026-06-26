@@ -47,11 +47,11 @@
   const LS_SCAN_KEY = 'kos_scan_v2';
   const LS_SKILLS_KEY = 'kos_myskills_v1';
   const TYPING_PHRASES = [
-    'Menganalisis pasar kerja Indonesia secara real-time...',
+    'Analyzing the Indonesian job market in real-time...',
     'Tracking the most in-demand skills on LinkedIn...',
     'Connecting job market data with content strategy...',
     'Monitoring Data & Technology job trends...',
-    'Mengidentifikasi peluang konten yang belum terlayani...',
+    'Identifying underserved content opportunities...',
     'Powered by LinkedIn Scraping + Instagram Analytics.',
   ];
   function plotLayout(overrides) {
@@ -1330,14 +1330,14 @@
     if (info) {
       const existing = info.querySelector('.pagination-info');
       if (existing)
-        existing.textContent = `Menampilkan ${start + 1} - ${Math.min(start + pageSize, total)} dari ${total} jobs`;
+        existing.textContent = `Showing ${start + 1} - ${Math.min(start + pageSize, total)} of ${total} jobs`;
     }
   }
   function drawPagination(totalPages) {
     const container = el('jobPagination');
     if (!container) return;
     const p = _jobsPage;
-    let html = `<div class="pagination-info">Menampilkan - dari ${_jobsFiltered.length} jobs</div><div class="pagination-controls">`;
+    let html = `<div class="pagination-info">Showing - of ${_jobsFiltered.length} jobs</div><div class="pagination-controls">`;
     html += `<button class="page-btn page-arrow" onclick="_goPage(${p - 1})" ${p <= 1 ? 'disabled' : ''}>&lsaquo;</button>`;
     const range = [];
     if (totalPages <= 7) {
@@ -1941,13 +1941,13 @@
     const totalJobs = kpis.total_jobs || 0;
     if (condition === 'gt' && totalJobs > parseInt(rawVal)) {
       showNotification(
-        `Alert: ${totalJobs} jobs ditemukan, melebihi threshold ${rawVal}`,
+        `Alert: ${totalJobs} jobs found, exceeding threshold ${rawVal}`,
         'success',
         8000,
       );
     } else if (condition === 'lt' && totalJobs < parseInt(rawVal)) {
       showNotification(
-        `Alert: Hanya ${totalJobs} jobs ditemukan, di bawah threshold ${rawVal}`,
+        `Alert: Only ${totalJobs} jobs found, below threshold ${rawVal}`,
         'warning',
         8000,
       );
@@ -1972,7 +1972,7 @@
   }
   function exportToCSV(data, filename) {
     if (!data || !data.length) {
-      showNotification('Tidak ada data untuk di-export', 'warning');
+      showNotification('No data to export', 'warning');
       return;
     }
     const keys = Object.keys(data[0]);

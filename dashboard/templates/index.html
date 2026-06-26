@@ -331,13 +331,13 @@
                   <div class="select-wrap" style="flex:1">
                     <svg class="select-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     <select class="form-input" id="alertCondition">
-                      <option value="">Tidak ada alert</option>
-                      <option value="gt">Alert jika total jobs lebih dari</option>
-                      <option value="lt">Alert jika total jobs kurang dari</option>
+                      <option value="">No alert</option>
+                      <option value="gt">Alert if total jobs is greater than</option>
+                      <option value="lt">Alert if total jobs is less than</option>
                     </select>
                     <svg class="select-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
                   </div>
-                  <input class="form-input alert-val-input" id="alertValue" type="number" placeholder="masukkan angka batas alert"/>
+                  <input class="form-input alert-val-input" id="alertValue" type="number" placeholder="enter alert threshold number"/>
                 </div>
               </div>
             </div>
@@ -428,7 +428,7 @@
                     <option value="25" selected>25 / page</option>
                     <option value="50">50 / page</option>
                   </select>
-                  <button class="btn-export-sm" id="btnExportJobs" title="Export job listings ke CSV">
+                  <button class="btn-export-sm" id="btnExportJobs" title="Export job listings to CSV">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Export CSV
                   </button>
