@@ -1,5 +1,5 @@
 ---
-title: JobLens Dashboard
+title: KarirOScope Dashboard
 emoji: 📊
 colorFrom: blue
 colorTo: purple
@@ -7,10 +7,10 @@ sdk: docker
 pinned: false
 ---
 
-# JobLens
-**Live Dashboard:** [https://dapp-eng-joblens-dashboard.hf.space](https://dapp-eng-joblens-dashboard.hf.space)
+# KarirOScope
+**Live Dashboard:** [https://huggingface.co/spaces/dapp-eng/kariroscope-dashboard](https://huggingface.co/spaces/dapp-eng/kariroscope-dashboard)
 
-JobLens is an interactive dashboard and data pipeline built for analyzing job market trends, specifically targeting tech and data roles in Indonesia. It collects, cleans, and visualizes job posting data to uncover insights such as top skills, hiring companies, work modes (remote/onsite), and average salaries.
+KarirOScope is an interactive dashboard and data pipeline built for analyzing job market trends, specifically targeting tech and data roles in Indonesia. It collects, cleans, and visualizes job posting data to uncover insights such as top skills, hiring companies, work modes (remote/onsite), and average salaries.
 
 ## Features
 - **Interactive Dashboard**: Built with Flask and Plotly for dynamic data visualization.
@@ -31,8 +31,8 @@ JobLens is an interactive dashboard and data pipeline built for analyzing job ma
 ### Setup
 1. Clone this repository:
    ```bash
-   git clone https://github.com/dapp-eng/JobLens.git
-   cd JobLens
+   git clone https://github.com/dapp-eng/KarirOScope.git
+   cd KarirOScope
    ```
 2. Navigate to the dashboard directory:
    ```bash
